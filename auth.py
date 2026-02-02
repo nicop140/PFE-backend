@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
-
+from database import db_connection
 # Configuration
 SECRET_KEY = "TON_SECRET_TRES_SECURISE" 
 ALGORITHM = "HS256"
@@ -59,3 +59,47 @@ async def get_current_admin(current_user: dict = Depends(get_current_user)):
             detail="Accès réservé aux administrateurs"
         )
     return current_user
+
+
+
+
+# ========================================
+# AJOUT : Support MongoDB pour les users
+# ========================================
+
+async def get_user_by_username_db(username: str):
+    """Récupère un utilisateur par son username depuis MongoDB"""
+    user = await db_connection.db.users.find_one({"username": username})
+    return user
+
+async def create_user_db(username: str, password: str, role: str = "user"):
+    """Crée un nouvel utilisateur dans MongoDB"""
+    hashed_password = get_password_hash(password)
+    new_user = {
+        "username": username,
+        "password": hashed_password,
+        "role": role,
+        "created_at": datetime.utcnow()
+    }
+    result = await db_connection.db.users.insert_one(new_user)
+    return result.inserted_id
+
+async def get_all_users_db():
+    """Récupère tous les utilisateurs depuis MongoDB (pour l'admin)"""
+    users = await db_connection.db.users.find({}, {"password": 0}).to_list(length=100)
+    return users
+
+async def update_user_role_db(username: str, role: str):
+    """Met à jour le rôle d'un utilisateur dans MongoDB"""
+    result = await db_connection.db.users.update_one(
+        {"username": username},
+        {"$set": {"role": role}}
+    )
+    return result.modified_count > 0
+
+async def delete_user_db(username: str):
+    """Supprime un utilisateur de MongoDB"""
+    result = await db_connection.db.users.delete_one({"username": username})
+    return result.deleted_count > 0
+
+
