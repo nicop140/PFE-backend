@@ -76,7 +76,7 @@ async def check_db():
     return {"status": "connected", "db_stats": stats}
 
 # -------------------------
-# AUTH ROUTES
+# AUTH ROUTES (JSON FILE - ANCIEN)
 # -------------------------
 @app.post("/auth/register", status_code=201)
 async def register(user: UserAuth):
@@ -103,6 +103,78 @@ async def login(user: UserAuth):
     
     token = create_access_token({"sub": db_user["username"], "role": db_user["role"]})
     return {"access_token": token, "token_type": "bearer"}
+
+# ⭐ -------------------------
+# ⭐ AUTH ROUTES MONGODB (NOUVEAU)
+# ⭐ -------------------------
+
+@app.post("/auth/register-db", status_code=201)
+async def register_db(user: UserAuth):
+    """Inscription avec MongoDB"""
+    # Vérifier si l'utilisateur existe déjà
+    existing_user = await get_user_by_username_db(user.username)
+    if existing_user:
+        raise HTTPException(
+            status_code=400, 
+            detail="Ce nom d'utilisateur existe déjà"
+        )
+    
+    # Valider le mot de passe (minimum 6 caractères)
+    if len(user.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Le mot de passe doit contenir au moins 6 caractères"
+        )
+    
+    # Créer l'utilisateur dans MongoDB
+    try:
+        user_id = await create_user_db(user.username, user.password, role="user")
+        return {
+            "message": "Utilisateur créé avec succès",
+            "username": user.username
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la création de l'utilisateur: {str(e)}"
+        )
+
+@app.post("/auth/login-db")
+async def login_db(user: UserAuth):
+    """Connexion avec MongoDB"""
+    # Récupérer l'utilisateur depuis MongoDB
+    db_user = await get_user_by_username_db(user.username)
+    
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Nom d'utilisateur ou mot de passe incorrect"
+        )
+    
+    # Vérifier le mot de passe
+    if not verify_password(user.password, db_user["password"]):
+        raise HTTPException(
+            status_code=401,
+            detail="Nom d'utilisateur ou mot de passe incorrect"
+        )
+    
+    # Créer le token d'accès
+    token = create_access_token({
+        "sub": db_user["username"],
+        "role": db_user.get("role", "user")
+    })
+    
+    # Retourner le token ET les infos utilisateur
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": str(db_user["_id"]),
+            "username": db_user["username"],
+            "role": db_user.get("role", "user"),
+            "created_at": db_user.get("created_at")
+        }
+    }
 
 @app.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
@@ -174,7 +246,7 @@ async def delete_audit(id: str):
     return {"message": f"Audit {id} et ses {res2.deleted_count} lignes de données ont été supprimés."}
 
 # -------------------------
-# ADMIN ROUTES
+# ADMIN ROUTES (JSON FILE - ANCIEN)
 # -------------------------
 @app.get("/admin/users", response_model=List[UserView])
 async def list_users(admin: dict = Depends(get_current_admin)):
@@ -219,4 +291,44 @@ async def delete_user(username: str, admin: dict = Depends(get_current_admin)):
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
         
     save_users(new_users)
+    return {"message": f"Utilisateur {username} supprimé avec succès"}
+
+# ⭐ -------------------------
+# ⭐ ADMIN ROUTES MONGODB (NOUVEAU)
+# ⭐ -------------------------
+
+@app.get("/admin/users-db", response_model=List[UserView])
+async def list_users_db(admin: dict = Depends(get_current_admin)):
+    """Liste tous les utilisateurs depuis MongoDB"""
+    users = await get_all_users_db()
+    return [{"username": u["username"], "role": u.get("role", "user")} for u in users]
+
+@app.post("/admin/users-db", status_code=201)
+async def admin_create_user_db(user: UserCreate, admin: dict = Depends(get_current_admin)):
+    """Créer un utilisateur depuis l'interface admin (MongoDB)"""
+    existing_user = await get_user_by_username_db(user.username)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="L'utilisateur existe déjà")
+    
+    user_id = await create_user_db(user.username, user.password, role=user.role)
+    return {"message": f"Utilisateur {user.username} créé avec le rôle {user.role}"}
+
+@app.put("/admin/users-db/{username}")
+async def update_user_role_db(username: str, update: UserUpdate, admin: dict = Depends(get_current_admin)):
+    """Mettre à jour le rôle d'un utilisateur (MongoDB)"""
+    success = await update_user_role_db(username, update.role)
+    if not success:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    return {"message": f"Rôle de {username} mis à jour en {update.role}"}
+
+@app.delete("/admin/users-db/{username}")
+async def delete_user_db_route(username: str, admin: dict = Depends(get_current_admin)):
+    """Supprimer un utilisateur (MongoDB)"""
+    if admin["username"] == username:
+        raise HTTPException(status_code=400, detail="Vous ne pouvez pas vous supprimer vous-même")
+    
+    success = await delete_user_db(username)
+    if not success:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
     return {"message": f"Utilisateur {username} supprimé avec succès"}
