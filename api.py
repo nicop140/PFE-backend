@@ -14,7 +14,7 @@ from auth import (
     get_user_by_username_db, create_user_db, get_all_users_db,
     update_user_role_db, delete_user_db
 )
-from ollama import AIService
+from llm import AIService
 
 # -------------------------
 # MODELS
@@ -202,7 +202,9 @@ async def launch_audit(
     # Lecture rapide CSV
     content = await file.read()
     df = pd.read_csv(io.BytesIO(content))
+    print(df)
     data_json = df.to_dict(orient='records')
+    print(data_json)
 
     background_tasks.add_task(AIService.generate_audit_report, audit_id, data_json)
     for row in data_json:
