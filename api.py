@@ -11,10 +11,10 @@ from contextlib import asynccontextmanager
 from auth import (
     load_users, save_users, verify_password, 
     get_password_hash, create_access_token, get_current_user, get_current_admin,
-    # Nouvelles fonctions MongoDB
     get_user_by_username_db, create_user_db, get_all_users_db,
     update_user_role_db, delete_user_db
 )
+from ollama import AIService
 
 # -------------------------
 # MODELS
@@ -104,10 +104,6 @@ async def login(user: UserAuth):
     
     token = create_access_token({"sub": db_user["username"], "role": db_user["role"]})
     return {"access_token": token, "token_type": "bearer"}
-
-# ⭐ -------------------------
-# ⭐ AUTH ROUTES MONGODB (NOUVEAU)
-# ⭐ -------------------------
 
 @app.post("/auth/register-db", status_code=201)
 async def register_db(user: UserAuth):
@@ -207,6 +203,8 @@ async def launch_audit(
     content = await file.read()
     df = pd.read_csv(io.BytesIO(content))
     data_json = df.to_dict(orient='records')
+
+    background_tasks.add_task(AIService.generate_audit_report, audit_id, data_json)
     for row in data_json:
         row["audit_id"] = audit_id
     # await db_connection.db.dataset_raw.insert_many(data_json)
@@ -215,7 +213,7 @@ async def launch_audit(
     # Lancer pipeline en arrière-plan si besoin
     # background_tasks.add_task(run_ai_pipeline, audit_id, data_json[:10])
 
-    return {"status": "success", "audit_id": audit_id, "message": "Audit lancé avec succès"}
+    return {"status": "started", "audit_id": audit_id, "message": "L'audit est en cours de génération par l'IA."}
 
 @app.get("/audits")
 async def list_audits():
