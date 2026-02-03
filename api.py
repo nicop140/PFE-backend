@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from database import connect_to_mongo, close_mongo_connection, db_connection
 from contextlib import asynccontextmanager
 from auth import (
@@ -219,8 +220,24 @@ async def launch_audit(
 
 @app.get("/audits")
 async def list_audits():
-    audits = await db_connection.db.PFE.find().sort("created_at", -1).to_list(length=100)
-    return audits
+    # 1. Récupération des données brutes
+    raw_audits = await db_connection.db.PFE.find().sort("created_at", -1).to_list(length=100)
+    
+    cleaned_audits = []
+    for audit in raw_audits:
+        # 2. Conversion de l'ObjectId en string (crucial pour éviter la 500)
+        if "_id" in audit:
+            audit["_id"] = str(audit["_id"])
+        
+        # 3. Sécurisation de l'encodage pour chaque champ texte
+        for key, value in audit.items():
+            if isinstance(value, bytes):
+                audit[key] = value.decode('utf-8', errors='replace')
+        
+        cleaned_audits.append(audit)
+
+    # 4. Utilisation du jsonable_encoder de FastAPI pour garantir la compatibilité JSON
+    return jsonable_encoder(cleaned_audits)
 
 @app.get("/audit/{id}")
 async def get_audit_detail(id: str):
