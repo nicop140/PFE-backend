@@ -41,6 +41,10 @@ class UserView(BaseModel):
     username: str
     role: str
 
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 # -------------------------
 # FASTAPI LIFESPAN
 # -------------------------
@@ -110,7 +114,6 @@ async def login(user: UserAuth):
 @app.post("/auth/register-db", status_code=201)
 async def register_db(user: UserAuth):
     """Inscription avec MongoDB"""
-    # Vérifier si l'utilisateur existe déjà
     existing_user = await get_user_by_username_db(user.username)
     if existing_user:
         raise HTTPException(
@@ -118,14 +121,12 @@ async def register_db(user: UserAuth):
             detail="Ce nom d'utilisateur existe déjà"
         )
     
-    # Valider le mot de passe (minimum 6 caractères)
     if len(user.password) < 6:
         raise HTTPException(
             status_code=400,
             detail="Le mot de passe doit contenir au moins 6 caractères"
         )
     
-    # Créer l'utilisateur dans MongoDB
     try:
         user_id = await create_user_db(user.username, user.password, role="user")
         return {
@@ -141,7 +142,6 @@ async def register_db(user: UserAuth):
 @app.post("/auth/login-db")
 async def login_db(user: UserAuth):
     """Connexion avec MongoDB"""
-    # Récupérer l'utilisateur depuis MongoDB
     db_user = await get_user_by_username_db(user.username)
     
     if not db_user:
@@ -150,20 +150,17 @@ async def login_db(user: UserAuth):
             detail="Nom d'utilisateur ou mot de passe incorrect"
         )
     
-    # Vérifier le mot de passe
     if not verify_password(user.password, db_user["password"]):
         raise HTTPException(
             status_code=401,
             detail="Nom d'utilisateur ou mot de passe incorrect"
         )
     
-    # Créer le token d'accès
     token = create_access_token({
         "sub": db_user["username"],
         "role": db_user.get("role", "user")
     })
     
-    # Retourner le token ET les infos utilisateur
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -179,43 +176,125 @@ async def login_db(user: UserAuth):
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
+@app.put("/auth/change-password")
+async def change_password(
+    password_data: PasswordChange,
+    current_user: dict = Depends(get_current_user)
+):
+    """Changement de mot de passe (MongoDB)"""
+    
+    # Récupérer l'utilisateur depuis MongoDB
+    db_user = await get_user_by_username_db(current_user["username"])
+    
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    # Vérifier le mot de passe actuel
+    if not verify_password(password_data.current_password, db_user["password"]):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+
+    # Vérifier que le nouveau mot de passe est différent
+    if verify_password(password_data.new_password, db_user["password"]):
+        raise HTTPException(
+            status_code=400, 
+            detail="Le nouveau mot de passe doit être différent de l'ancien"
+        )
+    
+    # Vérifier la longueur du nouveau mot de passe
+    if len(password_data.new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Le mot de passe doit contenir au moins 6 caractères"
+        )
+
+    # Mettre à jour dans MongoDB
+    hashed_password = get_password_hash(password_data.new_password)
+    result = await db_connection.db.users.update_one(
+        {"username": current_user["username"]},
+        {"$set": {"password": hashed_password}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors de la mise à jour du mot de passe"
+        )
+
+    return {"message": "Mot de passe modifié avec succès"}
+
+# ✅ ENDPOINT UNIFIÉ POUR LES STATS - Recherche insensible à la casse
+@app.get("/auth/stats")
+async def get_user_stats(current_user: dict = Depends(get_current_user)):
+    """
+    Récupère les statistiques d'audits de l'utilisateur connecté.
+    Utilise une recherche insensible à la casse pour gérer les variations de nom.
+    """
+    username = current_user["username"]
+    
+    # Recherche insensible à la casse : match "bankole", "Bankole", "BANKOLE", etc.
+    query = {"auteur": {"$regex": f"^{username}$", "$options": "i"}}
+    
+    # Comptage total des audits de l'utilisateur
+    total = await db_connection.db.PFE.count_documents(query)
+    
+    # Comptage des audits complétés
+    completed = await db_connection.db.PFE.count_documents({
+        "auteur": {"$regex": f"^{username}$", "$options": "i"},
+        "status": "COMPLETED"
+    })
+    
+    # Comptage des audits en cours
+    in_progress = await db_connection.db.PFE.count_documents({
+        "auteur": {"$regex": f"^{username}$", "$options": "i"},
+        "status": "PROCESSING"
+    })
+    
+    return {
+        "total": total,
+        "completed": completed,
+        "in_progress": in_progress
+    }
+
 ####################
 ### AUDIT ROUTES ###
 ####################
+
 @app.post("/audit/add")
 async def launch_audit(
     nom: str = Form(...),
-    auteur: str = Form(...),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
 ):
+    """
+    Crée un nouvel audit et lance l'analyse IA
+    """
     audit_id = str(uuid.uuid4())
-    
-    # 1. Création de l'entrée avec structure de rapport vide
+    username = current_user["username"]
+
+    # ✅ Création du document avec le champ 'auteur' pour lier à l'utilisateur
     new_audit = {
         "_id": audit_id,
         "nom": nom,
-        "auteur": auteur,
+        "auteur": username,  # Stockage du nom d'utilisateur pour les statistiques
         "date": datetime.utcnow().strftime("%Y-%m-%d"),
         "status": "PROCESSING",
-        "report_text": {
-            "titre": "",
-            "description": "",
-            "recommandations": ""
-        },
+        "report_text": {"titre": "", "description": "", "recommandations": ""},
         "created_at": datetime.utcnow()
     }
+    
+    # Insertion dans la collection PFE
     await db_connection.db.PFE.insert_one(new_audit)
 
-    # 2. Traitement du fichier
+    # Lecture et traitement du fichier CSV
     content = await file.read()
     df = pd.read_csv(io.BytesIO(content))
     data_json = df.to_dict(orient='records')
 
-    # 3. Lancement de l'IA (Synchrone ici pour renvoyer les données au front)
+    # Analyse par l'IA
     analysis = await AIService.generate_structured_analysis(data_json)
 
     if analysis:
-        # Mise à jour de chaque variable dans la DB
+        # Mise à jour avec les résultats de l'analyse
         await db_connection.db.PFE.update_one(
             {"_id": audit_id},
             {
@@ -251,27 +330,25 @@ async def test_stream_audit(file: UploadFile = File(...)):
 
 @app.get("/audits")
 async def list_audits():
-    # 1. Récupération des données brutes
+    """Liste tous les audits (pour admin ou vue globale)"""
     raw_audits = await db_connection.db.PFE.find().sort("created_at", -1).to_list(length=100)
     
     cleaned_audits = []
     for audit in raw_audits:
-        # 2. Conversion de l'ObjectId en string (crucial pour éviter la 500)
         if "_id" in audit:
             audit["_id"] = str(audit["_id"])
         
-        # 3. Sécurisation de l'encodage pour chaque champ texte
         for key, value in audit.items():
             if isinstance(value, bytes):
                 audit[key] = value.decode('utf-8', errors='replace')
         
         cleaned_audits.append(audit)
 
-    # 4. Utilisation du jsonable_encoder de FastAPI pour garantir la compatibilité JSON
     return jsonable_encoder(cleaned_audits)
 
 @app.get("/audit/{id}")
 async def get_audit_detail(id: str):
+    """Récupère les détails d'un audit spécifique"""
     audit = await db_connection.db.PFE.find_one({"_id": id})
     if not audit:
         raise HTTPException(status_code=404, detail="Audit introuvable")
@@ -279,6 +356,7 @@ async def get_audit_detail(id: str):
 
 @app.get("/audit/{id}/status")
 async def get_audit_status(id: str):
+    """Récupère uniquement le statut d'un audit (pour polling)"""
     audit = await db_connection.db.PFE.find_one({"_id": id}, {"status": 1})
     if not audit:
         raise HTTPException(status_code=404, detail="Audit introuvable")
@@ -286,6 +364,7 @@ async def get_audit_status(id: str):
 
 @app.delete("/audit/{id}")
 async def delete_audit(id: str):
+    """Supprime un audit et ses données associées"""
     res1 = await db_connection.db.PFE.delete_one({"_id": id})
     res2 = await db_connection.db.dataset_raw.delete_many({"audit_id": id})
     
@@ -293,6 +372,73 @@ async def delete_audit(id: str):
         raise HTTPException(status_code=404, detail="Audit non trouvé")
         
     return {"message": f"Audit {id} et ses {res2.deleted_count} lignes de données ont été supprimés."}
+
+# ========================================
+# 🔧 ENDPOINT DE DIAGNOSTIC TEMPORAIRE
+# ========================================
+@app.get("/debug/audit-check")
+async def debug_audit_check(current_user: dict = Depends(get_current_user)):
+    """
+    Diagnostic pour comprendre pourquoi les stats sont à 0
+    ⚠️ À SUPPRIMER après résolution
+    """
+    username = current_user["username"]
+    
+    # Tous les audits
+    all_audits = await db_connection.db.PFE.find().to_list(length=100)
+    
+    # Analyse
+    with_author = [a for a in all_audits if "auteur" in a]
+    without_author = [a for a in all_audits if "auteur" not in a]
+    
+    # Auteurs uniques
+    authors_list = list(set([a.get("auteur") for a in with_author if "auteur" in a]))
+    
+    # Tests de recherche
+    exact = await db_connection.db.PFE.count_documents({"auteur": username})
+    case_insensitive = await db_connection.db.PFE.count_documents({
+        "auteur": {"$regex": f"^{username}$", "$options": "i"}
+    })
+    
+    return {
+        "your_username": username,
+        "total_audits": len(all_audits),
+        "with_author_field": len(with_author),
+        "without_author_field": len(without_author),
+        "unique_authors": authors_list,
+        "match_results": {
+            "exact_match": exact,
+            "case_insensitive_match": case_insensitive
+        },
+        "sample_audits": [
+            {
+                "nom": a.get("nom"),
+                "auteur": a.get("auteur", "❌ MANQUANT"),
+                "status": a.get("status")
+            }
+            for a in all_audits[:5]
+        ]
+    }
+
+@app.post("/admin/fix-audits-author")
+async def fix_audits_author(admin: dict = Depends(get_current_admin)):
+    """
+    Ajoute le champ 'auteur' aux audits qui n'en ont pas
+    Utilise le username de l'admin connecté
+    """
+    username = admin["username"]
+    
+    # Mettre à jour les audits sans auteur
+    result = await db_connection.db.PFE.update_many(
+        {"auteur": {"$exists": False}},
+        {"$set": {"auteur": username}}
+    )
+    
+    return {
+        "message": "Audits corrigés",
+        "updated_count": result.modified_count,
+        "assigned_to": username
+    }
 
 ####################
 ### ADMIN ROUTES ###
@@ -363,7 +509,7 @@ async def admin_create_user_db(user: UserCreate, admin: dict = Depends(get_curre
     return {"message": f"Utilisateur {user.username} créé avec le rôle {user.role}"}
 
 @app.put("/admin/users-db/{username}")
-async def update_user_role_db(username: str, update: UserUpdate, admin: dict = Depends(get_current_admin)):
+async def update_user_role_db_route(username: str, update: UserUpdate, admin: dict = Depends(get_current_admin)):
     """Mettre à jour le rôle d'un utilisateur (MongoDB)"""
     success = await update_user_role_db(username, update.role)
     if not success:
