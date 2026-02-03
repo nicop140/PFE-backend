@@ -76,9 +76,9 @@ async def check_db():
     stats = await db_connection.db.command("dbStats")
     return {"status": "connected", "db_stats": stats}
 
-# -------------------------
-# AUTH ROUTES (JSON FILE - ANCIEN)
-# -------------------------
+####################
+### AUTH  ROUTES ###
+####################
 @app.post("/auth/register", status_code=201)
 async def register(user: UserAuth):
     users = load_users()
@@ -177,45 +177,57 @@ async def login_db(user: UserAuth):
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
-# -------------------------
-# AUDIT ROUTES
-# -------------------------
+####################
+### AUDIT ROUTES ###
+####################
 @app.post("/audit/add")
 async def launch_audit(
-    background_tasks: BackgroundTasks,
     nom: str = Form(...),
     auteur: str = Form(...),
     file: UploadFile = File(...)
 ):
-    # Création de l'entrée audit
     audit_id = str(uuid.uuid4())
+    
+    # 1. Création de l'entrée avec structure de rapport vide
     new_audit = {
         "_id": audit_id,
         "nom": nom,
         "auteur": auteur,
         "date": datetime.utcnow().strftime("%Y-%m-%d"),
-        "status": "UPLOADING",
+        "status": "PROCESSING",
+        "report_text": {
+            "titre": "",
+            "description": "",
+            "recommandations": ""
+        },
         "created_at": datetime.utcnow()
     }
     await db_connection.db.PFE.insert_one(new_audit)
 
-    # Lecture rapide CSV
+    # 2. Traitement du fichier
     content = await file.read()
     df = pd.read_csv(io.BytesIO(content))
-    print(df)
     data_json = df.to_dict(orient='records')
-    print(data_json)
 
-    background_tasks.add_task(AIService.generate_audit_report, audit_id, data_json)
-    for row in data_json:
-        row["audit_id"] = audit_id
-    # await db_connection.db.dataset_raw.insert_many(data_json)
-    # await db_connection.db.PFE.update_one({"_id": audit_id}, {"$set": {"status": "READY"}})
+    # 3. Lancement de l'IA (Synchrone ici pour renvoyer les données au front)
+    analysis = await AIService.generate_structured_analysis(data_json)
 
-    # Lancer pipeline en arrière-plan si besoin
-    # background_tasks.add_task(run_ai_pipeline, audit_id, data_json[:10])
-
-    return {"status": "started", "audit_id": audit_id, "message": "L'audit est en cours de génération par l'IA."}
+    if analysis:
+        # Mise à jour de chaque variable dans la DB
+        await db_connection.db.PFE.update_one(
+            {"_id": audit_id},
+            {
+                "$set": {
+                    "status": "COMPLETED",
+                    "report_text.titre": analysis["titre"],
+                    "report_text.description": analysis["description"],
+                    "report_text.recommandations": analysis["recommandations"]
+                }
+            }
+        )
+        return {"status": "success", "audit_id": audit_id, "analysis": analysis}
+    
+    return {"status": "error", "message": "L'analyse a échoué"}
 
 @app.get("/audits")
 async def list_audits():
@@ -246,9 +258,9 @@ async def delete_audit(id: str):
         
     return {"message": f"Audit {id} et ses {res2.deleted_count} lignes de données ont été supprimés."}
 
-# -------------------------
-# ADMIN ROUTES (JSON FILE - ANCIEN)
-# -------------------------
+####################
+### ADMIN ROUTES ###
+####################
 @app.get("/admin/users", response_model=List[UserView])
 async def list_users(admin: dict = Depends(get_current_admin)):
     users = load_users()
@@ -294,9 +306,9 @@ async def delete_user(username: str, admin: dict = Depends(get_current_admin)):
     save_users(new_users)
     return {"message": f"Utilisateur {username} supprimé avec succès"}
 
-# ⭐ -------------------------
-# ⭐ ADMIN ROUTES MONGODB (NOUVEAU)
-# ⭐ -------------------------
+#  -------------------------
+#  ADMIN ROUTES MONGODB 
+#  -------------------------
 
 @app.get("/admin/users-db", response_model=List[UserView])
 async def list_users_db(admin: dict = Depends(get_current_admin)):
