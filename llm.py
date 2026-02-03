@@ -1,6 +1,7 @@
 import ollama as ollama_lib
 import re
 from datetime import datetime
+from ollama import Client
 
 class AIService:
     @staticmethod
@@ -50,3 +51,34 @@ class AIService:
         except Exception as e:
             print(f" Erreur AIService: {str(e)}")
             return None
+    async def stream_structured_analysis(data: list):
+        """Générateur envoyant les chunks de Gemma 3 au fur et à mesure."""
+        client = Client(host='http://localhost:11434')
+        MODEL_NAME = "gemma3:4b"
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] analyse...")
+
+        prompt = f"""
+        Analyse SRE pour Google Online Boutique. Logs : {data[:10]}
+        Tu DOIS répondre impérativement en respectant ce format de balises :
+        [[TITRE]] ... [[/TITRE]]
+        [[DESCRIPTION]] ... [[/DESCRIPTION]]
+        [[RECOMMANDATIONS]] ... [[/RECOMMANDATIONS]]
+        """
+
+        try:
+            # On active le mode stream=True
+            stream = client.chat(
+                model=MODEL_NAME,
+                messages=[{'role': 'user', 'content': prompt}],
+                stream=True,
+            )
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] apress stream...")
+
+            for chunk in stream:
+                token = chunk['message']['content']
+                if token:
+                    # On yield chaque mot/caractère immédiatement
+                    yield token
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] fin chunck...")
+        except Exception as e:
+            yield f"Error: {str(e)}"

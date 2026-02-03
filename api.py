@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.encoders import jsonable_encoder
 from database import connect_to_mongo, close_mongo_connection, db_connection
 from contextlib import asynccontextmanager
@@ -229,6 +230,24 @@ async def launch_audit(
         return {"status": "success", "audit_id": audit_id, "analysis": analysis}
     
     return {"status": "error", "message": "L'analyse a échoué"}
+
+@app.post("/audit/test-stream")
+async def test_stream_audit(file: UploadFile = File(...)):
+    # 1. Préparation des données
+    content = await file.read()
+    df = pd.read_csv(io.BytesIO(content))
+    data_json = df.to_dict(orient='records')
+
+    # 2. On retourne la réponse en flux continu
+    return StreamingResponse(
+        AIService.stream_structured_analysis(data_json),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no" # Crucial si tu as un proxy type Nginx plus tard
+        }
+    )
 
 @app.get("/audits")
 async def list_audits():
