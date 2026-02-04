@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Depends, File, UploadFile, Form, BackgroundTasks
+from fastapi import FastAPI, HTTPException, status, Depends, File, UploadFile, Form, BackgroundTasks, Request
 from pydantic import BaseModel
 import pandas as pd 
 import io
@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.encoders import jsonable_encoder
 from database import connect_to_mongo, close_mongo_connection, db_connection
 from contextlib import asynccontextmanager
+from typing import List, Optional  
 from auth import (
     load_users, save_users, verify_password, 
     get_password_hash, create_access_token, get_current_user, get_current_admin,
@@ -27,11 +28,19 @@ class UserAuth(BaseModel):
 
 class UserResponse(BaseModel):
     username: str
+    nom: str
+    prenom: str
+    email: str
+    entreprise: Optional[str] = None
     role: str
 
 class UserCreate(BaseModel):
     username: str
     password: str
+    nom: str
+    prenom: str
+    email: str
+    entreprise: Optional[str] = None
     role: str = "user"
 
 class UserUpdate(BaseModel):
@@ -39,11 +48,21 @@ class UserUpdate(BaseModel):
 
 class UserView(BaseModel):
     username: str
+    nom: str
+    prenom: str
+    email: str
+    entreprise: Optional[str] = None
     role: str
 
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+class UserProfileUpdate(BaseModel):
+    nom: str
+    prenom: str
+    email: str
+    entreprise: Optional[str] = None
 
 # -------------------------
 # FASTAPI LIFESPAN
@@ -112,13 +131,23 @@ async def login(user: UserAuth):
     return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/auth/register-db", status_code=201)
-async def register_db(user: UserAuth):
-    """Inscription avec MongoDB"""
+async def register_db(user: UserCreate):
+    """Inscription avec MongoDB - avec email et entreprise"""
+    
+    # Vérifier si le username existe déjà
     existing_user = await get_user_by_username_db(user.username)
     if existing_user:
         raise HTTPException(
             status_code=400, 
             detail="Ce nom d'utilisateur existe déjà"
+        )
+    
+    # Vérifier si l'email existe déjà
+    existing_email = await db_connection.db.users.find_one({"email": user.email})
+    if existing_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Cet email est déjà utilisé"
         )
     
     if len(user.password) < 6:
@@ -127,17 +156,101 @@ async def register_db(user: UserAuth):
             detail="Le mot de passe doit contenir au moins 6 caractères"
         )
     
+    # Validation entreprise pour les admins
+    if user.role == "admin" and not user.entreprise:
+        raise HTTPException(
+            status_code=400,
+            detail="Le champ Entreprise est obligatoire pour les administrateurs"
+        )
+    
     try:
-        user_id = await create_user_db(user.username, user.password, role="user")
+        user_id = await create_user_db(
+            username=user.username,
+            password=user.password,
+            nom=user.nom,
+            prenom=user.prenom,
+            email=user.email,
+            entreprise=user.entreprise,
+            role=user.role
+        )
         return {
             "message": "Utilisateur créé avec succès",
-            "username": user.username
+            "username": user.username,
+            "nom": user.nom,
+            "prenom": user.prenom,
+            "email": user.email
         }
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Erreur lors de la création de l'utilisateur: {str(e)}"
         )
+
+@app.put("/auth/update-profile")
+async def update_profile(
+    profile_data: UserProfileUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Met à jour les informations du profil utilisateur (MongoDB)
+    L'utilisateur ne peut modifier que son propre profil
+    """
+    username = current_user["username"]
+    
+    # Récupérer l'utilisateur actuel
+    db_user = await get_user_by_username_db(username)
+    
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    
+    # Vérifier si l'email est déjà utilisé par un autre utilisateur
+    if profile_data.email != db_user.get("email"):
+        existing_email = await db_connection.db.users.find_one({
+            "email": profile_data.email,
+            "username": {"$ne": username}
+        })
+        if existing_email:
+            raise HTTPException(
+                status_code=400,
+                detail="Cet email est déjà utilisé par un autre utilisateur"
+            )
+    
+    # Validation entreprise pour les admins
+    if db_user.get("role") == "admin" and not profile_data.entreprise:
+        raise HTTPException(
+            status_code=400,
+            detail="Le champ Entreprise est obligatoire pour les administrateurs"
+        )
+    
+    # Préparer les données à mettre à jour
+    update_data = {
+        "nom": profile_data.nom,
+        "prenom": profile_data.prenom,
+        "email": profile_data.email,
+    }
+    
+    # Ajouter entreprise si fournie
+    if profile_data.entreprise:
+        update_data["entreprise"] = profile_data.entreprise
+    elif db_user.get("role") == "user":
+        update_data["entreprise"] = None
+    
+    # Mettre à jour dans MongoDB
+    result = await db_connection.db.users.update_one(
+        {"username": username},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0 and result.matched_count == 0:
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors de la mise à jour du profil"
+        )
+    
+    return {
+        "message": "Profil mis à jour avec succès",
+        "updated_fields": update_data
+    }
 
 @app.post("/auth/login-db")
 async def login_db(user: UserAuth):
@@ -167,6 +280,10 @@ async def login_db(user: UserAuth):
         "user": {
             "id": str(db_user["_id"]),
             "username": db_user["username"],
+            "nom": db_user.get("nom", ""),
+            "prenom": db_user.get("prenom", ""),
+            "email": db_user.get("email", ""),
+            "entreprise": db_user.get("entreprise"),
             "role": db_user.get("role", "user"),
             "created_at": db_user.get("created_at")
         }
@@ -174,7 +291,17 @@ async def login_db(user: UserAuth):
 
 @app.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
-    return current_user
+    """Récupère les infos de l'utilisateur connecté"""
+    db_user = await get_user_by_username_db(current_user["username"])
+    
+    return {
+        "username": db_user["username"],
+        "nom": db_user.get("nom", ""),
+        "prenom": db_user.get("prenom", ""),
+        "email": db_user.get("email", ""),
+        "entreprise": db_user.get("entreprise"),
+        "role": db_user.get("role", "user")
+    }
 
 @app.put("/auth/change-password")
 async def change_password(
@@ -222,7 +349,6 @@ async def change_password(
 
     return {"message": "Mot de passe modifié avec succès"}
 
-# ✅ ENDPOINT UNIFIÉ POUR LES STATS - Recherche insensible à la casse
 @app.get("/auth/stats")
 async def get_user_stats(current_user: dict = Depends(get_current_user)):
     """
@@ -271,11 +397,11 @@ async def launch_audit(
     audit_id = str(uuid.uuid4())
     username = current_user["username"]
 
-    # ✅ Création du document avec le champ 'auteur' pour lier à l'utilisateur
+    # Création du document avec le champ 'auteur' pour lier à l'utilisateur
     new_audit = {
         "_id": audit_id,
         "nom": nom,
-        "auteur": username,  # Stockage du nom d'utilisateur pour les statistiques
+        "auteur": username,
         "date": datetime.utcnow().strftime("%Y-%m-%d"),
         "status": "PROCESSING",
         "report_text": {"titre": "", "description": "", "recommandations": ""},
@@ -324,14 +450,70 @@ async def test_stream_audit(file: UploadFile = File(...)):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no" # Crucial si tu as un proxy type Nginx plus tard
+            "X-Accel-Buffering": "no"
         }
     )
 
+@app.get("/audits/all")
+async def list_all_audits(admin: dict = Depends(get_current_admin)):
+    """
+    Liste TOUS les audits (réservé aux admins uniquement)
+    """
+    raw_audits = await db_connection.db.PFE.find().sort("created_at", -1).to_list(length=1000)
+    
+    cleaned_audits = []
+    for audit in raw_audits:
+        if "_id" in audit:
+            audit["_id"] = str(audit["_id"])
+        
+        for key, value in audit.items():
+            if isinstance(value, bytes):
+                audit[key] = value.decode('utf-8', errors='replace')
+        
+        cleaned_audits.append(audit)
+
+    return jsonable_encoder(cleaned_audits)
+
+@app.get("/audits/my")
+async def list_my_audits(current_user: dict = Depends(get_current_user)):
+    """
+    Liste uniquement MES audits (utilisateur connecté)
+    """
+    username = current_user["username"]
+    
+    # Recherche insensible à la casse
+    query = {"auteur": {"$regex": f"^{username}$", "$options": "i"}}
+    
+    raw_audits = await db_connection.db.PFE.find(query).sort("created_at", -1).to_list(length=1000)
+    
+    cleaned_audits = []
+    for audit in raw_audits:
+        if "_id" in audit:
+            audit["_id"] = str(audit["_id"])
+        
+        for key, value in audit.items():
+            if isinstance(value, bytes):
+                audit[key] = value.decode('utf-8', errors='replace')
+        
+        cleaned_audits.append(audit)
+
+    return jsonable_encoder(cleaned_audits)
+
 @app.get("/audits")
-async def list_audits():
-    """Liste tous les audits (pour admin ou vue globale)"""
-    raw_audits = await db_connection.db.PFE.find().sort("created_at", -1).to_list(length=100)
+async def list_audits(current_user: dict = Depends(get_current_user)):
+    """
+    Liste les audits selon le rôle :
+    - Admin : TOUS les audits
+    - User : Uniquement ses audits
+    """
+    # Si admin, retourner tous les audits
+    if current_user.get("role") == "admin":
+        raw_audits = await db_connection.db.PFE.find().sort("created_at", -1).to_list(length=1000)
+    else:
+        # Sinon, uniquement les audits de l'utilisateur
+        username = current_user["username"]
+        query = {"auteur": {"$regex": f"^{username}$", "$options": "i"}}
+        raw_audits = await db_connection.db.PFE.find(query).sort("created_at", -1).to_list(length=1000)
     
     cleaned_audits = []
     for audit in raw_audits:
@@ -347,34 +529,88 @@ async def list_audits():
     return jsonable_encoder(cleaned_audits)
 
 @app.get("/audit/{id}")
-async def get_audit_detail(id: str):
-    """Récupère les détails d'un audit spécifique"""
+async def get_audit_detail(id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Récupère les détails d'un audit spécifique
+    - Admin : peut voir tous les audits
+    - User : peut voir uniquement ses propres audits
+    """
     audit = await db_connection.db.PFE.find_one({"_id": id})
+    
     if not audit:
         raise HTTPException(status_code=404, detail="Audit introuvable")
+    
+    # Vérification des permissions
+    if current_user.get("role") != "admin":
+        # Si pas admin, vérifier que c'est bien son audit
+        username = current_user["username"]
+        audit_author = audit.get("auteur", "")
+        
+        # Comparaison insensible à la casse
+        if audit_author.lower() != username.lower():
+            raise HTTPException(
+                status_code=403, 
+                detail="Vous n'avez pas l'autorisation d'accéder à cet audit"
+            )
+    
     return audit
 
 @app.get("/audit/{id}/status")
-async def get_audit_status(id: str):
-    """Récupère uniquement le statut d'un audit (pour polling)"""
-    audit = await db_connection.db.PFE.find_one({"_id": id}, {"status": 1})
+async def get_audit_status(id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Récupère uniquement le statut d'un audit (pour polling)
+    """
+    audit = await db_connection.db.PFE.find_one({"_id": id}, {"status": 1, "auteur": 1})
+    
     if not audit:
         raise HTTPException(status_code=404, detail="Audit introuvable")
+    
+    # Vérification des permissions
+    if current_user.get("role") != "admin":
+        username = current_user["username"]
+        audit_author = audit.get("auteur", "")
+        
+        if audit_author.lower() != username.lower():
+            raise HTTPException(
+                status_code=403, 
+                detail="Vous n'avez pas l'autorisation d'accéder à cet audit"
+            )
+    
     return {"status": audit.get("status")}
 
 @app.delete("/audit/{id}")
-async def delete_audit(id: str):
-    """Supprime un audit et ses données associées"""
+async def delete_audit(id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Supprime un audit et ses données associées
+    - Admin : peut supprimer tous les audits
+    - User : peut supprimer uniquement ses propres audits
+    """
+    audit = await db_connection.db.PFE.find_one({"_id": id})
+    
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit introuvable")
+    
+    # Vérification des permissions
+    if current_user.get("role") != "admin":
+        username = current_user["username"]
+        audit_author = audit.get("auteur", "")
+        
+        if audit_author.lower() != username.lower():
+            raise HTTPException(
+                status_code=403, 
+                detail="Vous n'avez pas l'autorisation de supprimer cet audit"
+            )
+    
+    # Suppression
     res1 = await db_connection.db.PFE.delete_one({"_id": id})
     res2 = await db_connection.db.dataset_raw.delete_many({"audit_id": id})
     
-    if res1.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Audit non trouvé")
-        
-    return {"message": f"Audit {id} et ses {res2.deleted_count} lignes de données ont été supprimés."}
+    return {
+        "message": f"Audit {id} et ses {res2.deleted_count} lignes de données ont été supprimés."
+    }
 
 # ========================================
-# 🔧 ENDPOINT DE DIAGNOSTIC TEMPORAIRE
+# ENDPOINT DE DIAGNOSTIC TEMPORAIRE
 # ========================================
 @app.get("/debug/audit-check")
 async def debug_audit_check(current_user: dict = Depends(get_current_user)):
@@ -496,7 +732,17 @@ async def delete_user(username: str, admin: dict = Depends(get_current_admin)):
 async def list_users_db(admin: dict = Depends(get_current_admin)):
     """Liste tous les utilisateurs depuis MongoDB"""
     users = await get_all_users_db()
-    return [{"username": u["username"], "role": u.get("role", "user")} for u in users]
+    return [
+        {
+            "username": u["username"],
+            "nom": u.get("nom", ""),
+            "prenom": u.get("prenom", ""),
+            "email": u.get("email", ""),
+            "entreprise": u.get("entreprise"),
+            "role": u.get("role", "user")
+        } 
+        for u in users
+    ]
 
 @app.post("/admin/users-db", status_code=201)
 async def admin_create_user_db(user: UserCreate, admin: dict = Depends(get_current_admin)):
@@ -505,8 +751,18 @@ async def admin_create_user_db(user: UserCreate, admin: dict = Depends(get_curre
     if existing_user:
         raise HTTPException(status_code=400, detail="L'utilisateur existe déjà")
     
-    user_id = await create_user_db(user.username, user.password, role=user.role)
-    return {"message": f"Utilisateur {user.username} créé avec le rôle {user.role}"}
+    user_id = await create_user_db(
+        username=user.username,
+        password=user.password,
+        nom=user.nom,
+        prenom=user.prenom,
+        email=user.email,
+        entreprise=user.entreprise,
+        role=user.role
+    )
+    return {
+        "message": f"Utilisateur {user.prenom} {user.nom} créé avec le rôle {user.role}"
+    }
 
 @app.put("/admin/users-db/{username}")
 async def update_user_role_db_route(username: str, update: UserUpdate, admin: dict = Depends(get_current_admin)):

@@ -99,18 +99,45 @@ async def get_user_by_username_db(username: str):
     user = await db_connection.db.users.find_one({"username": username})
     return user
 
-async def create_user_db(username: str, password: str, role: str = "user"):
+async def create_user_db(
+    username: str, 
+    password: str, 
+    nom: str, 
+    prenom: str,
+    email: str,
+    entreprise: str = None,
+    role: str = "user"
+):
     """
-    Crée un nouvel utilisateur dans MongoDB avec mot de passe hashé.
-    Retourne l'ID du document inséré.
+    Crée un nouvel utilisateur dans MongoDB avec tous les champs requis.
+    
+    Args:
+        username: Nom d'utilisateur unique
+        password: Mot de passe en clair (sera hashé)
+        nom: Nom de famille
+        prenom: Prénom
+        email: Adresse email
+        entreprise: Nom de l'entreprise (optionnel, requis pour admin)
+        role: Rôle de l'utilisateur (user/admin)
+    
+    Returns:
+        ObjectId: ID du document inséré
     """
     hashed_password = get_password_hash(password)
     new_user = {
         "username": username,
         "password": hashed_password,
+        "nom": nom,
+        "prenom": prenom,
+        "email": email,
         "role": role,
         "created_at": datetime.utcnow()
     }
+    
+    # Ajouter entreprise seulement si fournie
+    if entreprise:
+        new_user["entreprise"] = entreprise
+    
     result = await db_connection.db.users.insert_one(new_user)
     return result.inserted_id
 
@@ -140,3 +167,11 @@ async def delete_user_db(username: str):
     """
     result = await db_connection.db.users.delete_one({"username": username})
     return result.deleted_count > 0
+
+async def get_user_by_email_db(email: str):
+    """
+    Récupère un utilisateur par son email depuis MongoDB.
+    Retourne le document complet ou None si introuvable.
+    """
+    user = await db_connection.db.users.find_one({"email": email})
+    return user
