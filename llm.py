@@ -3,13 +3,30 @@ import re
 from datetime import datetime
 from ollama import Client
 
+TOPOLOGY = """
+ARCHITECTURE REFERENCE:
+- frontend: Point d'entrée. Dépend de: productcatalog, cart, shipping, checkout.
+- checkoutservice: Critique. Dépend de: payment, shipping, email, cart.
+- cartservice: Gestion panier (Redis).
+- shippingservice: Calcul logistique.
+"""
+ 
+SYSTEM_PROMPT = (
+    "Rôle: Expert SRE Senior (Google Online Boutique).\n"
+    "Objectif: Analyser les anomalies de monitoring (Value vs Threshold).\n"
+    "Contrainte: Utilise UNIQUEMENT les balises [[TITRE]], [[DESCRIPTION]], [[RECOMMANDATIONS]].\n"
+    "Rigueur: Identifie la root cause et l'impact sur les services dépendants."
+)
+
 class AIService:
     @staticmethod
     def _extract_section(text: str, tag: str) -> str:
         """Extrait le contenu entre des balises spécifiques [[TAG]]...[[/TAG]]."""
-        pattern = f"\\[\\[{tag}\\]\\](.*?)\\[\\[/{tag}\\]\\]"
+        pattern = f"\\[\\[{tag}\\]\\]\\s*(?::)?\\s*(.*?)(?=\\s*\\[\\[|$)"
         match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-        return match.group(1).strip() if match else f"Section {tag} non générée."
+        if match:
+            return match.group(1).strip()
+        return f"Section {tag} non générée."
 
     @staticmethod
     async def generate_structured_analysis(data: list):
@@ -18,22 +35,30 @@ class AIService:
 
         # --- PROMPT AVEC CONTRAINTES DE FORMATAGE ---
         prompt = f"""
-        En tant qu'expert SRE pour 'Google Online Boutique', analyse ces logs :
-        {data[:15]}
+        {TOPOLOGY}
+        LOGS À ANALYSER: {data[:10]}
+       
+        Rédige un rapport technique court :
+        - TITRE: Synthèse de l'incident.
+        - DESCRIPTION: Pourquoi (seuil dépassé) et Qui (service impacté).
+        - RECOMMANDATIONS: Actions techniques (kubectl, logs, etc).
+ 
+        Génère le rapport avec les balises [[TITRE]], [[DESCRIPTION]], [[RECOMMANDATIONS]].
 
-        Tu DOIS répondre impérativement en respectant ce format de balises :
-        [[TITRE]] Un titre court et percutant de l'incident [[/TITRE]]
-        [[DESCRIPTION]] Une analyse détaillée de la cause racine et des services impactés [[/DESCRIPTION]]
-        [[RECOMMANDATIONS]] Liste des actions correctives à entreprendre [[/RECOMMANDATIONS]]
+        Limite-toi à 200 mots par section.
         """
 
         try:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] analyse...")
             
-            response = client.chat(model=MODEL_NAME, messages=[
-                {'role': 'system', 'content': 'Tu es un assistant technique qui répond uniquement via les balises demandées.'},
-                {'role': 'user', 'content': prompt}
-            ])
+            response = client.chat(
+                model=MODEL_NAME,
+                messages=[
+                    {'role': 'system', 'content': SYSTEM_PROMPT},
+                    {'role': 'user', 'content': prompt}
+                ],
+                options={"temperature": 0.2}
+            )
             
             raw_text = response['message']['content']
             
@@ -69,8 +94,12 @@ class AIService:
             # On active le mode stream=True
             stream = client.chat(
                 model=MODEL_NAME,
-                messages=[{'role': 'user', 'content': prompt}],
+                messages=[
+                    {'role': 'system', 'content': SYSTEM_PROMPT},
+                    {'role': 'user', 'content': prompt}
+                ],
                 stream=True,
+                options={"temperature": 0.2}
             )
             print(f"[{datetime.now().strftime('%H:%M:%S')}] apress stream...")
 

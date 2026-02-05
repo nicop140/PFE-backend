@@ -1,0 +1,152 @@
+timestamp,service,probability,status,metric_name,actual_value,threshold,dependency_impact
+2026-01-22 16:14:00,cartservice,0.9966,🔴 DEGRADED,error_rate_pct,13.02,1.0,"frontend, checkoutservice"
+2026-01-22 16:25:00,emailservice,0.9513,🔴 DEGRADED,cpu_usage_pct,93.0,80.0,checkoutservice
+2026-01-22 16:26:00,emailservice,0.9923,🔴 DEGRADED,latency_ms,2656.0,300.0,checkoutservice
+2026-01-22 16:27:00,emailservice,0.9947,🔴 DEGRADED,latency_ms,2554.0,300.0,checkoutservice
+2026-01-22 16:28:00,emailservice,0.8964,🔴 DEGRADED,latency_ms,414.0,300.0,checkoutservice
+2026-01-22 17:42:00,shippingservice,0.9906,🔴 DEGRADED,error_rate_pct,3.54,1.0,"checkoutservice, frontend"
+2026-01-22 17:44:00,shippingservice,0.9966,🔴 DEGRADED,latency_ms,1439.0,300.0,"checkoutservice, frontend"
+2026-01-22 17:45:00,shippingservice,0.903,🔴 DEGRADED,error_rate_pct,11.69,1.0,"checkoutservice, frontend"
+2026-01-22 17:47:00,shippingservice,0.98,🔴 DEGRADED,error_rate_pct,6.6,1.0,"checkoutservice, frontend"
+2026-01-22 17:55:00,shippingservice,0.9907,🔴 DEGRADED,cpu_usage_pct,97.0,80.0,"checkoutservice, frontend"
+2026-01-22 17:56:00,shippingservice,0.9952,🔴 DEGRADED,error_rate_pct,9.21,1.0,"checkoutservice, frontend"
+2026-01-22 17:57:00,shippingservice,0.9946,🔴 DEGRADED,error_rate_pct,3.56,1.0,"checkoutservice, frontend"
+2026-01-22 17:58:00,shippingservice,0.9743,🔴 DEGRADED,cpu_usage_pct,86.0,80.0,"checkoutservice, frontend"
+2026-01-22 17:59:00,shippingservice,0.9848,🔴 DEGRADED,latency_ms,1157.0,300.0,"checkoutservice, frontend"
+2026-01-22 18:00:00,shippingservice,0.9796,🔴 DEGRADED,error_rate_pct,4.94,1.0,"checkoutservice, frontend"
+2026-01-22 18:01:00,shippingservice,0.9976,🔴 DEGRADED,error_rate_pct,14.12,1.0,"checkoutservice, frontend"
+2026-01-22 18:02:00,shippingservice,0.9675,🔴 DEGRADED,error_rate_pct,10.45,1.0,"checkoutservice, frontend"
+2026-01-22 18:03:00,shippingservice,0.9815,🔴 DEGRADED,cpu_usage_pct,95.0,80.0,"checkoutservice, frontend"
+2026-01-22 18:04:00,shippingservice,0.9894,🔴 DEGRADED,cpu_usage_pct,97.0,80.0,"checkoutservice, frontend"
+2026-01-22 18:32:00,recommendationservice,0.9118,🔴 DEGRADED,cpu_usage_pct,85.0,80.0,frontend
+2026-01-22 18:33:00,recommendationservice,0.9995,🔴 DEGRADED,latency_ms,1212.0,300.0,frontend
+2026-01-22 18:34:00,recommendationservice,0.9958,🔴 DEGRADED,cpu_usage_pct,87.0,80.0,frontend
+2026-01-22 18:35:00,recommendationservice,0.9279,🔴 DEGRADED,latency_ms,1553.0,300.0,frontend
+2026-01-22 19:53:00,cartservice,0.8871,🔴 DEGRADED,error_rate_pct,7.03,1.0,"frontend, checkoutservice"
+2026-01-22 19:54:00,cartservice,0.9687,🔴 DEGRADED,cpu_usage_pct,99.0,80.0,"frontend, checkoutservice"
+2026-01-22 20:06:00,paymentservice,0.9344,🔴 DEGRADED,error_rate_pct,11.4,1.0,checkoutservice
+2026-01-22 20:07:00,paymentservice,0.8879,🔴 DEGRADED,latency_ms,1940.0,300.0,checkoutservice
+2026-01-22 20:21:00,cartservice,0.919,🔴 DEGRADED,latency_ms,894.0,300.0,"frontend, checkoutservice"
+2026-01-22 20:44:00,emailservice,0.9798,🔴 DEGRADED,latency_ms,1742.0,300.0,checkoutservice
+2026-01-22 20:45:00,emailservice,0.9968,🔴 DEGRADED,error_rate_pct,9.2,1.0,checkoutservice
+2026-01-22 20:46:00,emailservice,0.9952,🔴 DEGRADED,latency_ms,1018.0,300.0,checkoutservice
+2026-01-22 20:47:00,emailservice,0.9786,🔴 DEGRADED,cpu_usage_pct,96.0,80.0,checkoutservice
+2026-01-22 20:51:00,paymentservice,0.9692,🔴 DEGRADED,cpu_usage_pct,93.0,80.0,checkoutservice
+2026-01-22 20:52:00,paymentservice,0.9025,🔴 DEGRADED,cpu_usage_pct,85.0,80.0,checkoutservice
+2026-01-22 21:17:00,shippingservice,0.9473,🔴 DEGRADED,error_rate_pct,14.68,1.0,"checkoutservice, frontend"
+2026-01-22 21:18:00,shippingservice,0.9914,🔴 DEGRADED,error_rate_pct,3.74,1.0,"checkoutservice, frontend"
+2026-01-22 21:19:00,shippingservice,0.9932,🔴 DEGRADED,latency_ms,1704.0,300.0,"checkoutservice, frontend"
+2026-01-22 21:20:00,shippingservice,0.9991,🔴 DEGRADED,latency_ms,1510.0,300.0,"checkoutservice, frontend"
+2026-01-22 21:21:00,shippingservice,0.9799,🔴 DEGRADED,latency_ms,2252.0,300.0,"checkoutservice, frontend"
+2026-01-22 21:22:00,shippingservice,0.9961,🔴 DEGRADED,latency_ms,1066.0,300.0,"checkoutservice, frontend"
+2026-01-22 21:23:00,shippingservice,0.9723,🔴 DEGRADED,error_rate_pct,12.83,1.0,"checkoutservice, frontend"
+2026-01-22 21:24:00,shippingservice,0.988,🔴 DEGRADED,latency_ms,1265.0,300.0,"checkoutservice, frontend"
+2026-01-22 21:41:00,emailservice,0.9968,🔴 DEGRADED,error_rate_pct,8.12,1.0,checkoutservice
+2026-01-22 21:42:00,emailservice,0.9982,🔴 DEGRADED,cpu_usage_pct,95.0,80.0,checkoutservice
+2026-01-22 21:42:00,emailservice2,0.86,🔴 DEGRADED,latency_ms,732.0,300.0,unknown
+2026-01-22 21:43:00,emailservice,0.982,🔴 DEGRADED,latency_ms,2364.0,300.0,checkoutservice
+2026-01-22 21:44:00,paymentservice,0.9881,🔴 DEGRADED,error_rate_pct,13.98,1.0,checkoutservice
+2026-01-22 21:46:00,paymentservice,0.8869,🔴 DEGRADED,cpu_usage_pct,95.0,80.0,checkoutservice
+2026-01-22 22:11:00,recommendationservice,0.9757,🔴 DEGRADED,error_rate_pct,7.08,1.0,frontend
+2026-01-22 22:12:00,recommendationservice,0.9383,🔴 DEGRADED,cpu_usage_pct,90.0,80.0,frontend
+2026-01-22 22:14:00,recommendationservice,0.9918,🔴 DEGRADED,latency_ms,1506.0,300.0,frontend
+2026-01-22 22:15:00,recommendationservice,0.9813,🔴 DEGRADED,error_rate_pct,6.12,1.0,frontend
+2026-01-22 22:16:00,recommendationservice,0.8632,🔴 DEGRADED,latency_ms,1912.0,300.0,frontend
+2026-01-22 22:17:00,recommendationservice,0.9455,🔴 DEGRADED,cpu_usage_pct,97.0,80.0,frontend
+2026-01-22 23:10:00,cartservice,0.8956,🔴 DEGRADED,error_rate_pct,12.88,1.0,"frontend, checkoutservice"
+2026-01-22 23:15:00,emailservice,0.9234,🔴 DEGRADED,error_rate_pct,9.84,1.0,checkoutservice
+2026-01-22 23:26:00,emailservice,0.995,🔴 DEGRADED,cpu_usage_pct,86.0,80.0,checkoutservice
+2026-01-22 23:27:00,emailservice,0.9987,🔴 DEGRADED,error_rate_pct,9.75,1.0,checkoutservice
+2026-01-22 23:28:00,emailservice,0.9966,🔴 DEGRADED,cpu_usage_pct,89.0,80.0,checkoutservice
+2026-01-22 23:29:00,emailservice,0.9637,🔴 DEGRADED,error_rate_pct,11.55,1.0,checkoutservice
+2026-01-23 01:41:00,cartservice,0.8914,🔴 DEGRADED,latency_ms,1180.0,300.0,"frontend, checkoutservice"
+2026-01-23 01:55:00,emailservice,0.9917,🔴 DEGRADED,cpu_usage_pct,90.0,80.0,checkoutservice
+2026-01-23 01:56:00,emailservice,0.9945,🔴 DEGRADED,cpu_usage_pct,85.0,80.0,checkoutservice
+2026-01-23 02:01:00,currencyservice2,0.9899,🔴 DEGRADED,cpu_usage_pct,89.0,80.0,unknown
+2026-01-23 02:45:00,recommendationservice,0.9882,🔴 DEGRADED,error_rate_pct,2.13,1.0,frontend
+2026-01-23 02:46:00,recommendationservice,0.8888,🔴 DEGRADED,latency_ms,981.0,300.0,frontend
+2026-01-23 02:47:00,recommendationservice,0.9439,🔴 DEGRADED,error_rate_pct,4.71,1.0,frontend
+2026-01-23 03:25:00,paymentservice,0.9983,🔴 DEGRADED,latency_ms,2724.0,300.0,checkoutservice
+2026-01-23 03:26:00,paymentservice,0.9765,🔴 DEGRADED,latency_ms,453.0,300.0,checkoutservice
+2026-01-23 03:27:00,shippingservice,0.9415,🔴 DEGRADED,latency_ms,2572.0,300.0,"checkoutservice, frontend"
+2026-01-23 04:11:00,frontend,0.8533,🔴 DEGRADED,error_rate_pct,2.36,1.0,users (direct impact)
+2026-01-23 04:12:00,frontend,0.8704,🔴 DEGRADED,cpu_usage_pct,85.0,80.0,users (direct impact)
+2026-01-23 04:15:00,frontend,0.9382,🔴 DEGRADED,cpu_usage_pct,89.0,80.0,users (direct impact)
+2026-01-23 04:16:00,frontend,0.9588,🔴 DEGRADED,latency_ms,1102.0,300.0,users (direct impact)
+2026-01-23 04:17:00,frontend,0.9487,🔴 DEGRADED,cpu_usage_pct,99.0,80.0,users (direct impact)
+2026-01-23 04:18:00,frontend,0.9369,🔴 DEGRADED,error_rate_pct,3.35,1.0,users (direct impact)
+2026-01-23 04:19:00,frontend,0.8906,🔴 DEGRADED,latency_ms,2093.0,300.0,users (direct impact)
+2026-01-23 04:30:00,paymentservice,0.9557,🔴 DEGRADED,latency_ms,1563.0,300.0,checkoutservice
+2026-01-23 06:42:00,emailservice,0.9989,🔴 DEGRADED,cpu_usage_pct,88.0,80.0,checkoutservice
+2026-01-23 06:43:00,emailservice,0.8643,🔴 DEGRADED,cpu_usage_pct,97.0,80.0,checkoutservice
+2026-01-23 06:44:00,emailservice,0.9968,🔴 DEGRADED,cpu_usage_pct,99.0,80.0,checkoutservice
+2026-01-23 07:10:00,paymentservice,0.9993,🔴 DEGRADED,error_rate_pct,9.25,1.0,checkoutservice
+2026-01-23 07:11:00,paymentservice,0.9993,🔴 DEGRADED,latency_ms,445.0,300.0,checkoutservice
+2026-01-23 07:12:00,paymentservice,0.9943,🔴 DEGRADED,latency_ms,896.0,300.0,checkoutservice
+2026-01-23 07:41:00,frontend,0.8693,🔴 DEGRADED,error_rate_pct,3.4,1.0,users (direct impact)
+2026-01-23 07:55:00,emailservice,0.9567,🔴 DEGRADED,error_rate_pct,3.96,1.0,checkoutservice
+2026-01-23 07:56:00,emailservice,0.9462,🔴 DEGRADED,latency_ms,738.0,300.0,checkoutservice
+2026-01-23 08:03:00,shippingservice,0.9984,🔴 DEGRADED,latency_ms,828.0,300.0,"checkoutservice, frontend"
+2026-01-23 08:10:00,shippingservice,0.9876,🔴 DEGRADED,error_rate_pct,3.34,1.0,"checkoutservice, frontend"
+2026-01-23 08:11:00,shippingservice,0.9354,🔴 DEGRADED,error_rate_pct,11.38,1.0,"checkoutservice, frontend"
+2026-01-23 09:34:00,emailservice,0.9936,🔴 DEGRADED,latency_ms,1787.0,300.0,checkoutservice
+2026-01-23 09:35:00,emailservice,0.9982,🔴 DEGRADED,latency_ms,1347.0,300.0,checkoutservice
+2026-01-23 09:36:00,emailservice,0.8851,🔴 DEGRADED,latency_ms,2982.0,300.0,checkoutservice
+2026-01-23 10:06:00,frontend,0.9913,🔴 DEGRADED,cpu_usage_pct,91.0,80.0,users (direct impact)
+2026-01-23 10:07:00,frontend,0.9903,🔴 DEGRADED,error_rate_pct,7.56,1.0,users (direct impact)
+2026-01-23 10:08:00,frontend,0.9815,🔴 DEGRADED,error_rate_pct,10.95,1.0,users (direct impact)
+2026-01-23 10:09:00,frontend,0.901,🔴 DEGRADED,error_rate_pct,5.22,1.0,users (direct impact)
+2026-01-23 10:39:00,paymentservice,0.9911,🔴 DEGRADED,error_rate_pct,5.07,1.0,checkoutservice
+2026-01-23 10:40:00,paymentservice,0.9386,🔴 DEGRADED,error_rate_pct,12.77,1.0,checkoutservice
+2026-01-23 10:41:00,paymentservice,0.977,🔴 DEGRADED,cpu_usage_pct,99.0,80.0,checkoutservice
+2026-01-23 11:08:00,emailservice,0.9994,🔴 DEGRADED,latency_ms,2026.0,300.0,checkoutservice
+2026-01-23 11:09:00,emailservice,0.9989,🔴 DEGRADED,error_rate_pct,12.98,1.0,checkoutservice
+2026-01-23 11:10:00,emailservice,0.9926,🔴 DEGRADED,error_rate_pct,9.5,1.0,checkoutservice
+2026-01-23 11:25:00,emailservice,0.9814,🔴 DEGRADED,latency_ms,2264.0,300.0,checkoutservice
+2026-01-23 11:26:00,emailservice,0.9915,🔴 DEGRADED,cpu_usage_pct,98.0,80.0,checkoutservice
+2026-01-23 11:27:00,emailservice,0.9872,🔴 DEGRADED,cpu_usage_pct,92.0,80.0,checkoutservice
+2026-01-23 11:28:00,emailservice,0.8914,🔴 DEGRADED,latency_ms,2837.0,300.0,checkoutservice
+2026-01-23 11:31:00,frontend,0.8978,🔴 DEGRADED,cpu_usage_pct,98.0,80.0,users (direct impact)
+2026-01-23 11:44:00,frontend,0.9851,🔴 DEGRADED,cpu_usage_pct,88.0,80.0,users (direct impact)
+2026-01-23 11:45:00,frontend,0.9671,🔴 DEGRADED,latency_ms,2523.0,300.0,users (direct impact)
+2026-01-23 11:46:00,frontend,0.918,🔴 DEGRADED,error_rate_pct,2.36,1.0,users (direct impact)
+2026-01-23 11:53:00,paymentservice,0.8576,🔴 DEGRADED,error_rate_pct,11.76,1.0,checkoutservice
+2026-01-23 11:54:00,shippingservice,0.997,🔴 DEGRADED,cpu_usage_pct,98.0,80.0,"checkoutservice, frontend"
+2026-01-23 11:54:00,emailservice,0.9666,🔴 DEGRADED,cpu_usage_pct,87.0,80.0,checkoutservice
+2026-01-23 11:55:00,emailservice,0.9943,🔴 DEGRADED,latency_ms,1453.0,300.0,checkoutservice
+2026-01-23 11:56:00,emailservice,0.9993,🔴 DEGRADED,latency_ms,2903.0,300.0,checkoutservice
+2026-01-23 11:56:00,shippingservice,0.9572,🔴 DEGRADED,error_rate_pct,6.89,1.0,"checkoutservice, frontend"
+2026-01-23 11:57:00,emailservice,0.9996,🔴 DEGRADED,error_rate_pct,2.44,1.0,checkoutservice
+2026-01-23 11:58:00,emailservice,0.9979,🔴 DEGRADED,latency_ms,2075.0,300.0,checkoutservice
+2026-01-23 11:59:00,emailservice,0.9991,🔴 DEGRADED,error_rate_pct,9.75,1.0,checkoutservice
+2026-01-23 12:00:00,emailservice,0.9958,🔴 DEGRADED,latency_ms,1299.0,300.0,checkoutservice
+2026-01-23 12:01:00,emailservice,0.9895,🔴 DEGRADED,cpu_usage_pct,87.0,80.0,checkoutservice
+2026-01-23 12:13:00,paymentservice,0.9669,🔴 DEGRADED,cpu_usage_pct,91.0,80.0,checkoutservice
+2026-01-23 12:33:00,paymentservice,0.9229,🔴 DEGRADED,cpu_usage_pct,99.0,80.0,checkoutservice
+2026-01-23 12:34:00,emailservice,0.8991,🔴 DEGRADED,error_rate_pct,7.71,1.0,checkoutservice
+2026-01-23 12:34:00,paymentservice,0.8709,🔴 DEGRADED,latency_ms,484.0,300.0,checkoutservice
+2026-01-23 12:35:00,emailservice,0.997,🔴 DEGRADED,error_rate_pct,13.19,1.0,checkoutservice
+2026-01-23 12:36:00,emailservice,0.9943,🔴 DEGRADED,latency_ms,1284.0,300.0,checkoutservice
+2026-01-23 12:37:00,emailservice,0.986,🔴 DEGRADED,error_rate_pct,9.62,1.0,checkoutservice
+2026-01-23 12:38:00,emailservice,0.9449,🔴 DEGRADED,error_rate_pct,8.6,1.0,checkoutservice
+2026-01-23 12:39:00,emailservice,0.9894,🔴 DEGRADED,error_rate_pct,4.94,1.0,checkoutservice
+2026-01-23 12:40:00,emailservice,0.9577,🔴 DEGRADED,cpu_usage_pct,88.0,80.0,checkoutservice
+2026-01-23 12:41:00,emailservice,0.9916,🔴 DEGRADED,cpu_usage_pct,88.0,80.0,checkoutservice
+2026-01-23 12:42:00,emailservice,0.9859,🔴 DEGRADED,latency_ms,1624.0,300.0,checkoutservice
+2026-01-23 12:43:00,emailservice,0.9751,🔴 DEGRADED,latency_ms,589.0,300.0,checkoutservice
+2026-01-23 12:52:00,paymentservice,0.9945,🔴 DEGRADED,error_rate_pct,11.48,1.0,checkoutservice
+2026-01-23 12:53:00,paymentservice,0.9828,🔴 DEGRADED,cpu_usage_pct,88.0,80.0,checkoutservice
+2026-01-23 12:58:00,paymentservice,0.9735,🔴 DEGRADED,cpu_usage_pct,87.0,80.0,checkoutservice
+2026-01-23 12:59:00,paymentservice,0.8748,🔴 DEGRADED,cpu_usage_pct,94.0,80.0,checkoutservice
+2026-01-23 13:00:00,paymentservice,0.8875,🔴 DEGRADED,cpu_usage_pct,91.0,80.0,checkoutservice
+2026-01-23 13:01:00,paymentservice,0.9749,🔴 DEGRADED,cpu_usage_pct,86.0,80.0,checkoutservice
+2026-01-23 13:02:00,paymentservice,0.9671,🔴 DEGRADED,error_rate_pct,10.17,1.0,checkoutservice
+2026-01-23 13:14:00,emailservice,0.9961,🔴 DEGRADED,latency_ms,2104.0,300.0,checkoutservice
+2026-01-23 13:15:00,emailservice,0.999,🔴 DEGRADED,latency_ms,1693.0,300.0,checkoutservice
+2026-01-23 13:16:00,emailservice,0.9982,🔴 DEGRADED,cpu_usage_pct,94.0,80.0,checkoutservice
+2026-01-23 13:17:00,emailservice,0.9547,🔴 DEGRADED,cpu_usage_pct,93.0,80.0,checkoutservice
+2026-01-23 13:24:00,emailservice,0.8701,🔴 DEGRADED,cpu_usage_pct,99.0,80.0,checkoutservice
+2026-01-23 13:27:00,emailservice,0.8553,🔴 DEGRADED,latency_ms,1229.0,300.0,checkoutservice
+2026-01-23 13:30:00,emailservice,0.8786,🔴 DEGRADED,latency_ms,1953.0,300.0,checkoutservice
+2026-01-23 14:00:00,currencyservice,0.9952,🔴 DEGRADED,latency_ms,2005.0,300.0,"frontend, checkoutservice"
+2026-01-23 14:01:00,currencyservice,0.9983,🔴 DEGRADED,cpu_usage_pct,93.0,80.0,"frontend, checkoutservice"

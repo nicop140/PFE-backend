@@ -385,19 +385,36 @@ async def get_user_stats(current_user: dict = Depends(get_current_user)):
 ### AUDIT ROUTES ###
 ####################
 
+import pandas as pd
+import io
+import uuid
+from datetime import datetime
+from fastapi import APIRouter, Form, Depends, HTTPException
+
+# ... vos autres imports et dépendances (db_connection, AIService, get_current_user)
+
 @app.post("/audit/add")
 async def launch_audit(
     nom: str = Form(...),
-    file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Crée un nouvel audit et lance l'analyse IA
+    Crée un nouvel audit en utilisant le fichier local enriched_predictions_report.csv
     """
+    file_path = "enriched_predictions_report.csv"
+    
+    try:
+        # Lecture du fichier local
+        df = pd.read_csv(file_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Le fichier CSV local est introuvable.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la lecture du fichier : {str(e)}")
+
     audit_id = str(uuid.uuid4())
     username = current_user["username"]
 
-    # Création du document avec le champ 'auteur' pour lier à l'utilisateur
+    # Création du document initial
     new_audit = {
         "_id": audit_id,
         "nom": nom,
@@ -408,32 +425,35 @@ async def launch_audit(
         "created_at": datetime.utcnow()
     }
     
-    # Insertion dans la collection PFE
+    # Insertion dans la base de données
     await db_connection.db.PFE.insert_one(new_audit)
 
-    # Lecture et traitement du fichier CSV
-    content = await file.read()
-    df = pd.read_csv(io.BytesIO(content))
+    # Conversion des données pour l'IA
     data_json = df.to_dict(orient='records')
 
     # Analyse par l'IA
     analysis = await AIService.generate_structured_analysis(data_json)
 
     if analysis:
-        # Mise à jour avec les résultats de l'analyse
+        # Mise à jour avec les résultats
         await db_connection.db.PFE.update_one(
             {"_id": audit_id},
             {
                 "$set": {
                     "status": "COMPLETED",
-                    "report_text.titre": analysis["titre"],
-                    "report_text.description": analysis["description"],
-                    "report_text.recommandations": analysis["recommandations"]
+                    "report_text.titre": analysis.get("titre", ""),
+                    "report_text.description": analysis.get("description", ""),
+                    "report_text.recommandations": analysis.get("recommandations", "")
                 }
             }
         )
         return {"status": "success", "audit_id": audit_id, "analysis": analysis}
     
+    # En cas d'échec de l'IA, on met à jour le statut en erreur
+    await db_connection.db.PFE.update_one(
+        {"_id": audit_id},
+        {"$set": {"status": "FAILED"}}
+    )
     return {"status": "error", "message": "L'analyse a échoué"}
 
 @app.post("/audit/test-stream")
